@@ -2,20 +2,13 @@ import fp from 'fastify-plugin';
 import type { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
-import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import { allowedOrigins } from '../config/env';
 
-const COOKIE_SIGNING_SECRET =
-  process.env.COOKIE_SIGNING_SECRET ??
-  (process.env.NODE_ENV === 'production'
-    ? undefined
-    : 'dev-cookie-signing-secret-not-for-production');
-
 /**
- * Security plugins: CORS (credentialed), Helmet headers, cookie parsing and
- * signing, global rate limiting. Login-specific throttling is configured on the
- * auth routes on top of the global limit.
+ * Security plugins: CORS (bearer-token clients), Helmet headers and global rate
+ * limiting. Login-specific throttling is configured on the auth routes on top
+ * of the global limit.
  */
 export default fp(
   async (fastify: FastifyInstance) => {
@@ -37,7 +30,7 @@ export default fp(
         }
         return cb(new Error('Origin not allowed'), false);
       },
-      credentials: true,
+      credentials: false,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'x-hrms-client'],
       maxAge: 86400,
@@ -46,16 +39,6 @@ export default fp(
     await fastify.register(helmet, {
       contentSecurityPolicy: true,
       crossOriginResourcePolicy: true,
-    });
-
-    await fastify.register(cookie, {
-      secret: COOKIE_SIGNING_SECRET,
-      // NOTE: parseOptions is merged into EVERY setCookie/clearCookie call
-      // (see node_modules/@fastify/cookie setCookie). Enabling `signed: true`
-      // here would sign the auth cookies on write but never unsign them on
-      // read, so keep parseOptions unsigned. `secret` stays wired for signed
-      // cookies and for request.unsignCookie() verification when needed.
-      parseOptions: { httpOnly: true },
     });
 
     await fastify.register(rateLimit, {

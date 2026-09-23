@@ -1,4 +1,9 @@
 import { api } from "./client";
+import {
+  getRefreshToken,
+  setTokens,
+  clearTokens,
+} from "@/lib/auth/token-store";
 import type {
   AuthSession,
   CurrentUser,
@@ -19,11 +24,26 @@ import type {
 // ---------------------------------------------------------------------------
 
 export async function login(email: string, password: string, rememberMe = false): Promise<AuthSession> {
-  return api.post<AuthSession>("/api/v1/auth/login", { email, password, rememberMe });
+  const session = await api.post<AuthSession>("/api/v1/auth/login", {
+    email,
+    password,
+    rememberMe,
+  });
+  const { accessToken, refreshToken } = session;
+  if (accessToken && refreshToken) {
+    setTokens(accessToken, refreshToken);
+  }
+  return session;
 }
 
 export async function logout(): Promise<void> {
-  await api.post<null>("/api/v1/auth/logout");
+  try {
+    await api.post<null>("/api/v1/auth/logout", {
+      refreshToken: getRefreshToken(),
+    });
+  } finally {
+    clearTokens();
+  }
 }
 
 export async function fetchMe(): Promise<CurrentUser> {

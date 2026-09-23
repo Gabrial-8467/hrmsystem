@@ -194,8 +194,8 @@ export default function SettingsPage() {
 
             <div className="flex justify-between items-center py-2">
               <div>
-                <p className="font-semibold">HTTP-only Secure Cookies</p>
-                <p className="text-xs text-muted-foreground">JWT Access & Refresh tokens in HTTP-only cookies</p>
+                <p className="font-semibold">Bearer Token Sessions</p>
+                <p className="text-xs text-muted-foreground">JWT access & refresh tokens via Authorization header (no cookies)</p>
               </div>
               <span className="font-medium text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 px-2 py-1 rounded">Enforced</span>
             </div>

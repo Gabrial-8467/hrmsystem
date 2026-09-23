@@ -16,6 +16,10 @@ export const requestPasswordResetBodySchema = z.object({
   email,
 });
 
+export const refreshTokenBodySchema = z.object({
+  refreshToken: z.string().min(1, 'Refresh token is required'),
+});
+
 export const resetPasswordBodySchema = z
   .object({
     token: z.string().min(20),
@@ -49,12 +53,14 @@ export const verifyEmailBodySchema = z.object({
 });
 
 export const loginSchema = z.object({ body: loginBodySchema });
+export const refreshTokenSchema = z.object({ body: refreshTokenBodySchema });
 export const requestPasswordResetSchema = z.object({ body: requestPasswordResetBodySchema });
 export const resetPasswordSchema = z.object({ body: resetPasswordBodySchema });
 export const changePasswordSchema = z.object({ body: changePasswordBodySchema });
 export const verifyEmailSchema = z.object({ body: verifyEmailBodySchema });
 
 export type LoginInput = z.infer<typeof loginBodySchema>;
+export type RefreshInput = z.infer<typeof refreshTokenBodySchema>;
 export type RequestPasswordResetInput = z.infer<typeof requestPasswordResetBodySchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>['body'];
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>['body'];

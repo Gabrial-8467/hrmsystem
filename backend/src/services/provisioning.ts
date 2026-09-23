@@ -99,6 +99,7 @@ export async function provisionOrganization(
         passwordHash,
         status: 'ACTIVE',
         emailVerifiedAt: new Date(),
+        mustChangePassword: true,
         userRoles: { create: { roleId: adminRole.id, assignedBy: null } },
       },
     });

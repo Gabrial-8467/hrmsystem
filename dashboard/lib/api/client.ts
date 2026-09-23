@@ -1,4 +1,5 @@
 import { env } from "@/config/env";
+import { getAccessToken, getRefreshToken, setTokens } from "@/lib/auth/token-store";
 
 export interface ApiErrorBody {
   code: string;
@@ -62,22 +63,37 @@ let refreshPromise: Promise<boolean> | null = null;
 
 async function tryRefreshToken(): Promise<boolean> {
   // Deduplicate concurrent refresh attempts.
-  if (!refreshPromise) {
-    refreshPromise = (async () => {
-      try {
-        const res = await fetch(buildUrl("/api/v1/auth/refresh"), {
-          method: "POST",
-          credentials: "include",
-          headers: { "x-hrms-client": "hrms-frontend" },
-        });
-        return res.ok;
-      } catch {
-        return false;
-      } finally {
-        refreshPromise = null;
-      }
-    })();
-  }
+  if (refreshPromise) return refreshPromise;
+
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return false;
+
+  refreshPromise = (async () => {
+    try {
+      const res = await fetch(buildUrl("/api/v1/auth/refresh"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-hrms-client": "hrms-frontend",
+        },
+        body: JSON.stringify({ refreshToken }),
+      });
+      if (!res.ok) return false;
+      const payload = (await res.json()) as
+        | { success: true; data: { accessToken: string; refreshToken: string } }
+        | { success: false }
+        | null;
+      if (!payload || payload.success !== true || !payload.data) return false;
+      const { accessToken, refreshToken: nextRefreshToken } = payload.data;
+      if (!accessToken || !nextRefreshToken) return false;
+      setTokens(accessToken, nextRefreshToken);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
   return refreshPromise;
 }
 
@@ -97,13 +113,14 @@ export async function apiRequest<T>(
   let res: Response;
   const hasBody = body !== undefined;
   const isFormData = hasBody && body instanceof FormData;
+  const accessToken = getAccessToken();
   try {
     res = await fetch(buildUrl(path, query), {
       method,
-      credentials: "include",
       signal,
       headers: {
         "x-hrms-client": "hrms-frontend",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
         ...(hasBody && !isFormData ? { "Content-Type": "application/json" } : {}),
         ...headers,
       },
@@ -165,10 +182,13 @@ export const api = {
     options: { query?: Record<string, QueryValue>; retryOnAuthRefresh?: boolean } = {},
   ): Promise<Blob> {
     const { query, retryOnAuthRefresh = true } = options;
+    const accessToken = getAccessToken();
     const res = await fetch(buildUrl(path, query), {
       method: "GET",
-      credentials: "include",
-      headers: { "x-hrms-client": "hrms-frontend" },
+      headers: {
+        "x-hrms-client": "hrms-frontend",
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
     });
 
     if (!res.ok) {

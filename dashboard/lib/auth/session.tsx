@@ -16,6 +16,7 @@ import {
   login as loginRequest,
   logout as logoutRequest,
 } from "@/lib/api/auth";
+import { clearTokens } from "@/lib/auth/token-store";
 import type { CurrentUser } from "@/lib/types";
 
 interface SessionContextValue {
@@ -69,6 +70,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       // Even if the network request fails, clear the local session.
       void err;
     }
+    clearTokens();
     queryClient.clear();
     router.push("/login");
     router.refresh();

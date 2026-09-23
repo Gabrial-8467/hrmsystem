@@ -29,6 +29,7 @@ export interface CurrentUser {
   roles: UserRole[];
   permissions: string[];
   isSuperAdmin: boolean;
+  mustChangePassword: boolean;
 }
 
 export interface AuthSession {
@@ -42,10 +43,12 @@ export interface AuthSession {
     roles: UserRole[];
     permissions: string[];
     isSuperAdmin: boolean;
+    mustChangePassword: boolean;
   };
   accessToken: string;
   accessTokenExpiresIn: number;
   refreshTokenExpiresIn: number;
+  refreshToken: string;
 }
 
 export type LoginResponse = AuthSession;

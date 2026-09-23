@@ -14,6 +14,7 @@ export interface AuthSession {
     roles: { id: string; code: string; name: string }[];
     permissions: string[];
     isSuperAdmin: boolean;
+    mustChangePassword: boolean;
   };
   accessToken: string;
   accessTokenExpiresIn: number;
@@ -43,4 +44,5 @@ export interface CurrentUser {
   roles: { id: string; code: string; name: string }[];
   permissions: string[];
   isSuperAdmin: boolean;
+  mustChangePassword: boolean;
 }

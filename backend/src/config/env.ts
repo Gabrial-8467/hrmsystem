@@ -15,13 +15,6 @@ const envSchema = z.object({
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().default(7),
   PASSWORD_RESET_TTL_MINUTES: z.coerce.number().default(60),
 
-  COOKIE_SECURE: z
-    .string()
-    .default('false')
-    .transform((v) => v === 'true'),
-  COOKIE_DOMAIN: z.string().default('localhost'),
-  COOKIE_SIGNING_SECRET: z.string().min(16).optional(),
-
   LOGIN_MAX_ATTEMPTS: z.coerce.number().default(5),
   LOGIN_LOCKOUT_MINUTES: z.coerce.number().default(15),
   PASSWORD_MIN_LENGTH: z.coerce.number().default(8),

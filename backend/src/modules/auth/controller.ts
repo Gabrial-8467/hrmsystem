@@ -1,11 +1,11 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { AuthService } from './service';
 import { sendSuccess } from '../../utils/response';
-import { setAuthCookies, clearAuthCookies, REFRESH_COOKIE } from '../../utils/cookies';
 import { contextFromReq } from '../../services/audit';
 import type {
   ChangePasswordInput,
   LoginInput,
+  RefreshInput,
   RequestPasswordResetInput,
   ResetPasswordInput,
   VerifyEmailInput,
@@ -17,13 +17,6 @@ export class AuthController {
   async login(request: FastifyRequest, reply: FastifyReply, body: LoginInput) {
     const ctx = contextFromReq(request);
     const result = await this.service.login(body.email, body.password, ctx);
-    setAuthCookies(
-      reply,
-      result.data.accessToken,
-      result.refreshToken,
-      result.data.accessTokenExpiresIn,
-      result.data.refreshTokenExpiresIn,
-    );
     await request.server.audit.record({
       ...ctx,
       organizationId: result.data.user.organizationId,
@@ -32,30 +25,30 @@ export class AuthController {
       entityId: result.data.user.id,
       metadata: { email: body.email },
     });
-    return sendSuccess(reply, result.data, 'Signed in successfully');
+    return sendSuccess(
+      reply,
+      { ...result.data, refreshToken: result.refreshToken },
+      'Signed in successfully',
+    );
   }
 
-  async refresh(request: FastifyRequest, reply: FastifyReply) {
+  async refresh(request: FastifyRequest, reply: FastifyReply, body: RefreshInput) {
     const ctx = contextFromReq(request);
-    const cookie = request.cookies?.[REFRESH_COOKIE];
-    const result = await this.service.refresh(cookie ?? '', ctx);
+    const result = await this.service.refresh(body.refreshToken, ctx);
     if (!result) {
-      clearAuthCookies(reply);
       return sendSuccess(reply, null, 'Session is no longer valid');
     }
-    setAuthCookies(
+    return sendSuccess(
       reply,
-      result.data.accessToken,
-      result.refreshToken,
-      result.data.accessTokenExpiresIn,
-      result.data.refreshTokenExpiresIn,
+      { ...result.data, refreshToken: result.refreshToken },
+      'Session refreshed',
     );
-    return sendSuccess(reply, result.data, 'Session refreshed');
   }
 
   async logout(request: FastifyRequest, reply: FastifyReply) {
     const ctx = contextFromReq(request);
-    await this.service.logout(request.cookies?.[REFRESH_COOKIE]);
+    const refreshToken = (request.body as { refreshToken?: string } | undefined)?.refreshToken;
+    await this.service.logout(refreshToken);
     if (request.user) {
       await this.service.logoutAll(request.user.id);
       await request.server.audit.record({
@@ -65,7 +58,6 @@ export class AuthController {
         entityId: request.user.id,
       });
     }
-    clearAuthCookies(reply);
     return sendSuccess(reply, null, 'Signed out successfully');
   }
 

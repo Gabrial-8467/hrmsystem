@@ -42,6 +42,7 @@ export class AuthService {
         lastName: true,
         organizationId: true,
         status: true,
+        mustChangePassword: true,
       },
     });
 
@@ -63,6 +64,7 @@ export class AuthService {
         roles: auth.roles,
         permissions: Array.from(auth.permissions),
         isSuperAdmin: auth.isSuperAdmin,
+        mustChangePassword: user.mustChangePassword,
       },
       accessToken,
       accessTokenExpiresIn: accessTokenExpirySeconds(),
@@ -259,6 +261,7 @@ export class AuthService {
       roles: auth.roles,
       permissions: Array.from(auth.permissions).sort(),
       isSuperAdmin: auth.isSuperAdmin,
+      mustChangePassword: user.mustChangePassword,
     };
   }
 

@@ -5,6 +5,7 @@ import { AuthService } from './service';
 import {
   changePasswordBodySchema,
   loginBodySchema,
+  refreshTokenBodySchema,
   requestPasswordResetBodySchema,
   resetPasswordBodySchema,
   verifyEmailBodySchema,
@@ -26,8 +27,9 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   }, (req, reply) => controller.login(req, reply, req.body));
 
   typed.post('/refresh', {
+    schema: { body: refreshTokenBodySchema },
     config: { rateLimit: { max: 20, timeWindow: '1 minute' } },
-  }, (req, reply) => controller.refresh(req, reply));
+  }, (req, reply) => controller.refresh(req, reply, req.body));
 
   typed.post('/logout', {}, (req, reply) => controller.logout(req, reply));
 

@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { Prisma, type PrismaClient } from '@prisma/client';
 import { NotFoundError } from '../../utils/errors';
 import { provisionOrganization } from '../../services/provisioning';
@@ -130,7 +131,7 @@ export class OrganizationService {
   }
 
   async create(input: CreateOrganizationInput) {
-    const initialPassword = `Temp@${Math.random().toString(36).slice(2, 10)}`;
+    const initialPassword = `Temp@${randomBytes(9).toString('base64url')}`;
     const result = await provisionOrganization(this.prisma, {
       name: input.name,
       slug: input.slug,
