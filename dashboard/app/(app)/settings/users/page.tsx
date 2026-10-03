@@ -1045,11 +1045,16 @@ export default function UsersRolesPage() {
           <Card>
             <CardHeader className="pb-0">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <KeyRound className="size-4 text-muted-foreground" />
-                  Permission Matrix
-                  <Badge variant="secondary" className="text-[10px]">{totalPerms}</Badge>
-                </CardTitle>
+                <div className="space-y-1">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <KeyRound className="size-4 text-muted-foreground" />
+                    Permission Matrix
+                    <Badge variant="secondary" className="text-[10px]">{totalPerms}</Badge>
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">
+                    Read-only view of all available permissions grouped by module. To assign permissions, edit a role from the Roles tab.
+                  </p>
+                </div>
                 <div className="relative min-w-[220px]">
                   <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
