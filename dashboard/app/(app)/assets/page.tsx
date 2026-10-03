@@ -371,7 +371,7 @@ export default function AssetsPage() {
                 <option value="" disabled>
                   Select an employee
                 </option>
-                {employees?.map((emp) => (
+                {Array.isArray(employees) && employees.map((emp) => (
                   <option key={emp.id} value={emp.id}>
                     {emp.firstName} {emp.lastName} ({emp.employeeCode})
                   </option>

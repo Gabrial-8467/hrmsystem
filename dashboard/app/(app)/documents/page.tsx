@@ -321,7 +321,7 @@ export default function DocumentsPage() {
                 onChange={(e) => setUploadForm((f) => ({ ...f, employeeId: e.target.value }))}
               >
                 <option value="">Me ({user?.email ?? "current user"})</option>
-                {employees?.map((emp) => (
+                {Array.isArray(employees) && employees.map((emp) => (
                   <option key={emp.id} value={emp.id}>
                     {emp.firstName} {emp.lastName} ({emp.employeeCode})
                   </option>
@@ -381,7 +381,7 @@ export default function DocumentsPage() {
                 onChange={(e) => setLinkForm((f) => ({ ...f, employeeId: e.target.value }))}
               >
                 <option value="">Me ({user?.email ?? "current user"})</option>
-                {employees?.map((emp) => (
+                {Array.isArray(employees) && employees.map((emp) => (
                   <option key={emp.id} value={emp.id}>
                     {emp.firstName} {emp.lastName} ({emp.employeeCode})
                   </option>
