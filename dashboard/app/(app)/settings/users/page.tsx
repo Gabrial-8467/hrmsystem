@@ -710,7 +710,7 @@ export default function UsersRolesPage() {
             {r.isSystem ? <Lock className="size-3 shrink-0 text-muted-foreground" /> : null}
             {!r.isActive ? <Badge variant="warning" className="text-[10px]">Inactive</Badge> : null}
           </div>
-          {canManageRoles && !r.isSystem ? (
+          {canManageRoles ? (
             <div className="flex items-center gap-0.5">
               <Button
                 size="icon"

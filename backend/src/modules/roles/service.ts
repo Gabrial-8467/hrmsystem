@@ -151,10 +151,7 @@ export class RoleService {
   }
 
   async update(orgId: string, roleId: string, input: UpdateRoleInput): Promise<RoleView> {
-    const role = await this.getOwnedRole(orgId, roleId);
-    if (role.isSystem) {
-      throw new BadRequestError('System roles cannot be modified', 'SYSTEM_ROLE_LOCKED');
-    }
+    await this.getOwnedRole(orgId, roleId);
 
     let permissionRefs: PermissionRef[] | null = null;
     if (input.permissions) {
@@ -205,9 +202,7 @@ export class RoleService {
 
   async remove(orgId: string, roleId: string): Promise<void> {
     const role = await this.getOwnedRole(orgId, roleId);
-    if (role.isSystem) {
-      throw new BadRequestError('System roles cannot be deleted', 'SYSTEM_ROLE_LOCKED');
-    }
+
     if (role.userRoles.length > 0) {
       throw new BadRequestError(
         'Role is assigned to users and cannot be deleted',

@@ -86,3 +86,21 @@ export function resolveOrgScope(request: FastifyRequest, requestedOrgId?: string
   }
   return request.user?.organizationId ?? '';
 }
+export function requireOrgAdmin() {
+  return async (request: FastifyRequest, _reply: FastifyReply): Promise<void> => {
+    if (!request.user) {
+      throw new ForbiddenError('Authentication required', 'FORBIDDEN');
+    }
+    if (request.user.isSuperAdmin) {
+      return;
+    }
+    const codes = request.user.roles.map((r) => r.code);
+    if (!codes.includes('ORG_ADMIN')) {
+      throw new ForbiddenError(
+        'You do not have permission to perform this action',
+        'PERMISSION_DENIED',
+        { required: 'ORG_ADMIN' },
+      );
+    }
+  };
+}

@@ -3,7 +3,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { sendSuccess } from '../../utils/response';
 import { authenticate } from '../../middleware/authenticate';
-import { requirePermission, resolveOrgScope } from '../../middleware/guard';
+import { requirePermission, requireOrgAdmin, resolveOrgScope } from '../../middleware/guard';
 import { contextFromReq } from '../../services/audit';
 import { permissionsByModule, SYSTEM_ROLES } from '../../config/permissions';
 import { RoleService } from './service';
@@ -52,7 +52,7 @@ export async function roleRoutes(app: FastifyInstance): Promise<void> {
   });
 
   typed.post('/', {
-    preHandler: [authenticate, requirePermission('roles.manage')],
+    preHandler: [authenticate, requireOrgAdmin()],
     schema: { body: createRoleBodySchema },
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const orgId = resolveOrgScope(request);
@@ -68,7 +68,7 @@ export async function roleRoutes(app: FastifyInstance): Promise<void> {
   });
 
   typed.patch('/:id', {
-    preHandler: [authenticate, requirePermission('roles.manage')],
+    preHandler: [authenticate, requireOrgAdmin()],
     schema: { params: roleParamsSchema, body: updateRoleBodySchema },
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const orgId = resolveOrgScope(request);
@@ -85,7 +85,7 @@ export async function roleRoutes(app: FastifyInstance): Promise<void> {
   });
 
   typed.delete('/:id', {
-    preHandler: [authenticate, requirePermission('roles.manage')],
+    preHandler: [authenticate, requireOrgAdmin()],
     schema: { params: roleParamsSchema },
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const orgId = resolveOrgScope(request);
