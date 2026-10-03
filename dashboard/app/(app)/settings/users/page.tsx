@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -320,11 +321,13 @@ function PermissionGroupsEditor({
   selected,
   onToggle,
   onSelectAll,
+  readOnly = false,
 }: {
   groups: PermissionGroup[];
   selected: Set<string>;
   onToggle: (key: string) => void;
   onSelectAll: (keys: string[], value: boolean) => void;
+  readOnly?: boolean;
 }) {
   return (
     <div className="grid gap-3 max-h-72 overflow-y-auto pr-1">
@@ -341,7 +344,8 @@ function PermissionGroupsEditor({
             <label className="flex items-center gap-2 cursor-pointer mb-1">
               <Checkbox
                 checked={someSelected && !allSelected ? "indeterminate" : allSelected}
-                onCheckedChange={(val) => onSelectAll(groupKeys, val === true)}
+                onCheckedChange={(val) => !readOnly && onSelectAll(groupKeys, val === true)}
+                disabled={readOnly}
               />
               <span className="text-sm font-semibold capitalize">{group.module.replace(/[-_]/g, " ")}</span>
               <span className="ml-auto text-xs text-muted-foreground">
@@ -351,7 +355,7 @@ function PermissionGroupsEditor({
             <div className="grid gap-1.5 pl-6">
               {group.permissions.map((p) => (
                 <label key={p.key} className="flex items-center gap-2 cursor-pointer py-0.5">
-                  <Checkbox checked={selected.has(p.key)} onCheckedChange={() => onToggle(p.key)} />
+                  <Checkbox checked={selected.has(p.key)} onCheckedChange={() => !readOnly && onToggle(p.key)} disabled={readOnly} />
                   <span className="text-xs">
                     <span className="font-medium">{p.name}</span>
                     <span className="ml-2 font-mono text-[11px] text-muted-foreground">{p.key}</span>
@@ -389,6 +393,20 @@ function RoleEditorDialog({
   const [description, setDescription] = useState(role?.description ?? "");
   const [isActive, setIsActive] = useState(role ? role.isActive : true);
   const [selected, setSelected] = useState<Set<string>>(new Set(role?.permissions ?? []));
+  const [permSearchRole, setPermSearchRole] = useState("");
+  const filteredGroupsRole = useMemo(() => {
+    const q = permSearchRole.trim().toLowerCase();
+    if (!q) return groups;
+    return groups
+      .map((g) => ({
+        ...g,
+        permissions: g.permissions.filter(
+          (p) => p.key.toLowerCase().includes(q) || p.name.toLowerCase().includes(q),
+        ),
+      }))
+      .filter((g) => g.permissions.length > 0);
+  }, [groups, permSearchRole]);
+
 
   const createMutation = useMutation({
     mutationFn: async () =>
@@ -506,7 +524,18 @@ function RoleEditorDialog({
                 </label>
               ) : null}
             </div>
-            <PermissionGroupsEditor groups={groups} selected={selected} onToggle={toggleKey} onSelectAll={selectAll} />
+            <div className="space-y-2">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  className="pl-8 h-8"
+                  placeholder="Search permissions in this role..."
+                  value={permSearchRole}
+                  onChange={(e) => setPermSearchRole(e.target.value)}
+                />
+              </div>
+              <PermissionGroupsEditor groups={filteredGroupsRole} selected={selected} onToggle={toggleKey} onSelectAll={selectAll} />
+            </div>
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
@@ -557,6 +586,7 @@ export default function UsersRolesPage() {
   const [editingRole, setEditingRole] = useState<RoleSummary | null>(null);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<UserStatusFilter>("ALL");
+  const [activeTab, setActiveTab] = useState<"users" | "roles" | "permissions">("users");
 
   const { data: usersData, isPending: usersPending } = useQuery({
     queryKey: ["usersList"],
@@ -618,6 +648,20 @@ export default function UsersRolesPage() {
       return haystack.includes(q);
     });
   }, [users, query, statusFilter]);
+
+  const [permSearch, setPermSearch] = useState("");
+  const filteredGroups = useMemo(() => {
+    const q = permSearch.trim().toLowerCase();
+    if (!q) return groups;
+    return groups
+      .map((g) => ({
+        ...g,
+        permissions: g.permissions.filter(
+          (p) => p.key.toLowerCase().includes(q) || p.name.toLowerCase().includes(q),
+        ),
+      }))
+      .filter((g) => g.permissions.length > 0);
+  }, [groups, permSearch]);
 
   const stats = [
     {
@@ -696,9 +740,19 @@ export default function UsersRolesPage() {
             </div>
           ) : null}
         </div>
-        <p className="text-xs text-muted-foreground line-clamp-2">
+        <p className="text-xs text-muted-foreground line-clamp-2 min-h-[28px]">
           {r.description || (r.isSystem ? "Built-in system role." : "Custom role.")}
         </p>
+        <div className="flex flex-wrap gap-1">
+          {r.permissions.slice(0, 3).map((p) => (
+            <span key={p} className="rounded bg-muted/60 px-1.5 py-0.5 text-[9px] font-mono text-muted-foreground">
+              {p}
+            </span>
+          ))}
+          {r.permissions.length > 3 && (
+            <span className="text-[9px] text-muted-foreground">+{r.permissions.length - 3} more</span>
+          )}
+        </div>
         <div className="space-y-1.5">
           <div className="flex items-center justify-between text-[11px] text-muted-foreground">
             <span className="rounded border border-border px-1.5 py-0.5 font-mono text-[10px]">{r.code}</span>
@@ -747,6 +801,7 @@ export default function UsersRolesPage() {
         }
       />
 
+
       {/* Stats */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((s) => (
@@ -765,201 +820,253 @@ export default function UsersRolesPage() {
         ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Roles panel */}
-        <Card className="lg:col-span-1">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <ShieldCheck className="size-4 text-muted-foreground" /> Roles
-              <Badge variant="secondary" className="text-[10px]">{roles.length}</Badge>
-            </CardTitle>
-            {canManageRoles ? (
-              <Button
-                size="xs"
-                variant="outline"
-                className="gap-1"
-                onClick={() => {
-                  setEditingRole(null);
-                  setRoleEditorOpen(true);
-                }}
-              >
-                <Plus className="size-3" /> New Role
-              </Button>
-            ) : null}
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {rolesPending ? (
-              <div className="space-y-2">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Skeleton key={i} className="h-20 w-full" />
-                ))}
-              </div>
-            ) : (
-              <>
-                {systemRoles.length > 0 ? (
-                  <div className="space-y-2">
-                    <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      <Lock className="size-3" /> System roles · {systemRoles.length}
-                    </p>
-                    {systemRoles.map((r) => renderRoleCard(r))}
-                  </div>
-                ) : null}
-                <div className="space-y-2">
-                  <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    <KeyRound className="size-3" /> Custom roles · {customRoles.length}
-                  </p>
-                  {customRoles.length === 0 ? (
-                    <div className="rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground">
-                      No custom roles yet. Create one to grant tailored access.
-                    </div>
-                  ) : (
-                    customRoles.map((r) => renderRoleCard(r))
-                  )}
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-4">
+        <TabsList className="grid w-full max-w-md grid-cols-3">
+          <TabsTrigger value="users" className="flex items-center gap-2">
+            <Users className="size-4" />
+            Users
+          </TabsTrigger>
+          <TabsTrigger value="roles" className="flex items-center gap-2">
+            <ShieldCheck className="size-4" />
+            Roles
+          </TabsTrigger>
+          <TabsTrigger value="permissions" className="flex items-center gap-2">
+            <KeyRound className="size-4" />
+            Permissions
+          </TabsTrigger>
+        </TabsList>
 
-        {/* Users panel */}
-        <Card className="lg:col-span-2 overflow-hidden">
-          <CardHeader className="pb-0">
-            <CardTitle className="text-base flex items-center gap-2">
-              <KeyRound className="size-4 text-muted-foreground" /> Users
-              <Badge variant="secondary" className="text-[10px]">
-                {filteredUsers.length === users.length ? users.length : `${filteredUsers.length}/${users.length}`}
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <div className="flex flex-wrap items-center gap-2 px-6 py-4">
-            <div className="relative min-w-[200px] flex-1">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                className="pl-8"
-                placeholder="Search by name or email..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-            </div>
-            <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/40 p-0.5">
-              {STATUS_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setStatusFilter(opt.value)}
-                  className={cn(
-                    "h-7 rounded-md px-3 text-xs font-medium transition-colors",
-                    statusFilter === opt.value
-                      ? "bg-card text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-muted/50 text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b">
-                <tr>
-                  <th className="px-4 py-3">User</th>
-                  <th className="px-4 py-3">Roles</th>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {usersPending ? (
-                  Array.from({ length: 3 }).map((_, i) => (
-                    <tr key={i}>
-                      <td className="px-4 py-3" colSpan={4}>
-                        <Skeleton className="h-10 w-full" />
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  filteredUsers.map((u) => (
-                    <tr key={u.id} className="hover:bg-muted/30 transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="relative flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-xs">
-                            {u.firstName?.charAt(0)}
-                            {u.lastName?.charAt(0)}
-                            <span
-                              className={cn(
-                                "absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full ring-2 ring-card",
-                                u.status === "ACTIVE" ? "bg-emerald-500" : "bg-amber-500",
-                              )}
-                            />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-semibold text-foreground truncate">
-                              {u.firstName} {u.lastName}
-                            </p>
-                            <p className="text-xs text-muted-foreground truncate">{u.email}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap gap-1 max-w-[220px]">
-                          {(u.roles ?? []).map((r) => (
-                            <Badge key={r.id} variant="secondary" className="text-[10px]">{r.name}</Badge>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant={u.status === "ACTIVE" ? "success" : "outline"} className="capitalize">
-                          {u.status === "ACTIVE" ? "Active" : u.status.toLowerCase()}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {canUpdateUser ? (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="size-7"
-                              aria-label={`Edit ${u.email}`}
-                              onClick={() => setEditingUser(u)}
-                            >
-                              <Pencil className="size-3.5" />
-                            </Button>
-                          ) : null}
-                          {canDeleteUser && u.email !== user?.email ? (
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="size-7 text-destructive"
-                              aria-label={`Delete ${u.email}`}
-                              onClick={() => {
-                                if (window.confirm(`Deactivate ${u.firstName} ${u.lastName}?`)) {
-                                  deleteUserMut.mutate(u);
-                                }
-                              }}
-                            >
-                              <Trash2 className="size-3.5" />
-                            </Button>
-                          ) : null}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-            {!usersPending && filteredUsers.length === 0 ? (
-              <div className="p-10 text-center">
-                <div className="mx-auto mb-2 flex size-10 items-center justify-center rounded-full bg-muted">
+        <TabsContent value="users" className="space-y-4">
+          <Card className="overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-2 px-6 py-4">
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-base flex items-center gap-2">
                   <Users className="size-4 text-muted-foreground" />
-                </div>
-                <p className="text-sm font-medium text-foreground">No matching users</p>
-                <p className="text-xs text-muted-foreground">Try adjusting the search or status filter.</p>
+                  Users
+                  <Badge variant="secondary" className="text-[10px]">
+                    {filteredUsers.length === users.length ? users.length : `${filteredUsers.length}/${users.length}`}
+                  </Badge>
+                </CardTitle>
               </div>
-            ) : null}
-          </div>
-        </Card>
-      </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative min-w-[200px]">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    className="pl-8 h-8"
+                    placeholder="Search by name or email..."
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/40 p-0.5">
+                  {STATUS_OPTIONS.map((opt) => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setStatusFilter(opt.value)}
+                      className={cn(
+                        "h-7 rounded-md px-3 text-xs font-medium transition-colors",
+                        statusFilter === opt.value
+                          ? "bg-card text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                {canCreateUser && (
+                  <Button size="sm" className="gap-2" onClick={() => setInviteOpen(true)}>
+                    <UserPlus className="size-4" /> Invite User
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-muted/50 text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b">
+                  <tr>
+                    <th className="px-4 py-3">User</th>
+                    <th className="px-4 py-3">Roles</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {usersPending
+                    ? Array.from({ length: 3 }).map((_, i) => (
+                        <tr key={i}>
+                          <td className="px-4 py-3" colSpan={4}>
+                            <Skeleton className="h-10 w-full" />
+                          </td>
+                        </tr>
+                      ))
+                    : filteredUsers.map((u) => (
+                        <tr key={u.id} className="hover:bg-muted/30 transition-colors">
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <div className="relative flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-xs">
+                                {u.firstName?.charAt(0)}
+                                {u.lastName?.charAt(0)}
+                                <span
+                                  className={cn(
+                                    "absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full ring-2 ring-card",
+                                    u.status === "ACTIVE" ? "bg-emerald-500" : "bg-amber-500",
+                                  )}
+                                />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-semibold text-foreground truncate">
+                                  {u.firstName} {u.lastName}
+                                </p>
+                                <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap gap-1 max-w-[280px]">
+                              {(u.roles ?? []).map((r) => (
+                                <Badge key={r.id} variant="secondary" className="text-[10px]">
+                                  {r.name}
+                                </Badge>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge variant={u.status === "ACTIVE" ? "success" : "outline"} className="capitalize">
+                              {u.status === "ACTIVE" ? "Active" : u.status.toLowerCase()}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              {canUpdateUser && (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="size-7"
+                                  aria-label={`Edit ${u.email}`}
+                                  onClick={() => setEditingUser(u)}
+                                >
+                                  <Pencil className="size-3.5" />
+                                </Button>
+                              )}
+                              {canDeleteUser && u.email !== user?.email && (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="size-7 text-destructive"
+                                  aria-label={`Delete ${u.email}`}
+                                  onClick={() => {
+                                    if (window.confirm(`Deactivate ${u.firstName} ${u.lastName}?`)) {
+                                      deleteUserMut.mutate(u);
+                                    }
+                                  }}
+                                >
+                                  <Trash2 className="size-3.5" />
+                                </Button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                </tbody>
+              </table>
+              {!usersPending && filteredUsers.length === 0 && (
+                <div className="p-10 text-center">
+                  <div className="mx-auto mb-2 flex size-10 items-center justify-center rounded-full bg-muted">
+                    <Users className="size-4 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm font-medium text-foreground">No matching users</p>
+                  <p className="text-xs text-muted-foreground">Try adjusting the search or status filter.</p>
+                </div>
+              )}
+            </div>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="roles" className="space-y-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <ShieldCheck className="size-4 text-muted-foreground" />
+                Roles
+                <Badge variant="secondary" className="text-[10px]">{roles.length}</Badge>
+              </CardTitle>
+              {canManageRoles && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => {
+                    setEditingRole(null);
+                    setRoleEditorOpen(true);
+                  }}
+                >
+                  <Plus className="size-4" /> New Role
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {rolesPending ? (
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <Skeleton key={i} className="h-28 w-full" />
+                  ))}
+                </div>
+              ) : (
+                <>
+                  {systemRoles.length > 0 && (
+                    <div className="space-y-3">
+                      <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        <Lock className="size-3" /> System roles · {systemRoles.length}
+                      </p>
+                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{systemRoles.map((r) => renderRoleCard(r))}</div>
+                    </div>
+                  )}
+                  <div className="space-y-3">
+                    <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      <KeyRound className="size-3" /> Custom roles · {customRoles.length}
+                    </p>
+                    {customRoles.length === 0 ? (
+                      <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                        No custom roles yet. Create one to grant tailored access.
+                      </div>
+                    ) : (
+                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{customRoles.map((r) => renderRoleCard(r))}</div>
+                    )}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="permissions" className="space-y-4">
+          <Card>
+            <CardHeader className="pb-0">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <KeyRound className="size-4 text-muted-foreground" />
+                  Permission Matrix
+                  <Badge variant="secondary" className="text-[10px]">{totalPerms}</Badge>
+                </CardTitle>
+                <div className="relative min-w-[220px]">
+                  <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    className="pl-8 h-8"
+                    placeholder="Search permissions..."
+                    value={permSearch}
+                    onChange={(e) => setPermSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-4">
+              <PermissionGroupsEditor groups={filteredGroups} selected={new Set()} onToggle={() => {}} onSelectAll={() => {}} readOnly />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <InviteUserDialog
         key={inviteOpen ? "open" : "closed"}
